@@ -34,37 +34,54 @@ CREATE TABLE interactions (
 );
 
 CREATE TABLE emotion_results (
-    emotion_result_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    emotion_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    interaction_id UUID NOT NULL UNIQUE,
-
-    fear REAL,
-    sadness REAL,
-    anger REAL,
-    nervousness REAL,
-    voice_stress REAL,
-
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    CONSTRAINT fk_emotion_results_interaction
-        FOREIGN KEY (interaction_id)
+    interaction_id UUID NOT NULL UNIQUE
         REFERENCES interactions(interaction_id)
         ON DELETE RESTRICT,
 
-    CONSTRAINT chk_emotion_fear
-        CHECK (fear IS NULL OR fear BETWEEN 0 AND 1),
+    input_type TEXT NOT NULL
+        CHECK (input_type IN ('text', 'voice', 'multimodal')),
 
-    CONSTRAINT chk_emotion_sadness
-        CHECK (sadness IS NULL OR sadness BETWEEN 0 AND 1),
+    text TEXT,
 
-    CONSTRAINT chk_emotion_anger
-        CHECK (anger IS NULL OR anger BETWEEN 0 AND 1),
+    anger REAL NOT NULL
+        CHECK (anger BETWEEN 0 AND 1),
 
-    CONSTRAINT chk_emotion_nervousness
-        CHECK (nervousness IS NULL OR nervousness BETWEEN 0 AND 1),
+    contempt REAL NOT NULL
+        CHECK (contempt BETWEEN 0 AND 1),
 
-    CONSTRAINT chk_emotion_voice_stress
-        CHECK (voice_stress IS NULL OR voice_stress BETWEEN 0 AND 1)
+    disgust REAL NOT NULL
+        CHECK (disgust BETWEEN 0 AND 1),
+
+    fear REAL NOT NULL
+        CHECK (fear BETWEEN 0 AND 1),
+
+    frustration REAL NOT NULL
+        CHECK (frustration BETWEEN 0 AND 1),
+
+    gratitude REAL NOT NULL
+        CHECK (gratitude BETWEEN 0 AND 1),
+
+    joy REAL NOT NULL
+        CHECK (joy BETWEEN 0 AND 1),
+
+    love REAL NOT NULL
+        CHECK (love BETWEEN 0 AND 1),
+
+    neutral REAL NOT NULL
+        CHECK (neutral BETWEEN 0 AND 1),
+
+    sadness REAL NOT NULL
+        CHECK (sadness BETWEEN 0 AND 1),
+
+    surprise REAL NOT NULL
+        CHECK (surprise BETWEEN 0 AND 1),
+
+    voice_stress REAL
+        CHECK (voice_stress IS NULL OR voice_stress BETWEEN 0 AND 1),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE predictions (
