@@ -14,11 +14,19 @@ class AssessmentCreate(BaseModel):
 
 class EmotionResultCreate(BaseModel):
     interaction_id: str
-    fear: float | None = Field(default=None, ge=0, le=1)
-    sadness: float | None = Field(default=None, ge=0, le=1)
+    input_type: str
+
     anger: float | None = Field(default=None, ge=0, le=1)
-    nervousness: float | None = Field(default=None, ge=0, le=1)
-    voice_stress: float | None = Field(default=None, ge=0, le=1)
+    contempt: float | None = Field(default=None, ge=0, le=1)
+    disgust: float | None = Field(default=None, ge=0, le=1)
+    fear: float | None = Field(default=None, ge=0, le=1)
+    frustration: float | None = Field(default=None, ge=0, le=1)
+    gratitude: float | None = Field(default=None, ge=0, le=1)
+    joy: float | None = Field(default=None, ge=0, le=1)
+    love: float | None = Field(default=None, ge=0, le=1)
+    neutral: float | None = Field(default=None, ge=0, le=1)
+    sadness: float | None = Field(default=None, ge=0, le=1)
+    surprise: float | None = Field(default=None, ge=0, le=1)
 
 
 class PredictionCreate(BaseModel):

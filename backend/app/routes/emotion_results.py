@@ -17,11 +17,18 @@ def create_emotion_result(result: EmotionResultCreate):
     try:
         emotion_data = create_emotion_result_service(
             result.interaction_id,
-            result.fear,
-            result.sadness,
+            result.input_type,
             result.anger,
-            result.nervousness,
-            result.voice_stress
+            result.contempt,
+            result.disgust,
+            result.fear,
+            result.frustration,
+            result.gratitude,
+            result.joy,
+            result.love,
+            result.neutral,
+            result.sadness,
+            result.surprise
         )
 
         return {
