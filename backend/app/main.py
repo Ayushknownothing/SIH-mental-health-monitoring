@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routes import victims
+from app.routes import victims, assessments, emotion_results, predictions
 
 app = FastAPI(
     title="AI Mental Health Monitoring System",
@@ -8,6 +8,9 @@ app = FastAPI(
 )
 
 app.include_router(victims.router)
+app.include_router(assessments.router)
+app.include_router(emotion_results.router)
+app.include_router(predictions.router)
 
 
 @app.get("/")
