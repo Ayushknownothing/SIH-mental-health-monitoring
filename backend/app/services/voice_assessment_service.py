@@ -1,5 +1,7 @@
 import json
 import os
+import subprocess
+import tempfile
 
 import httpx
 from fastapi import UploadFile
@@ -29,6 +31,106 @@ async def create_voice_assessment(
             "Audio file cannot be empty"
         )
 
+    original_filename = (
+        audio.filename or "audio"
+    )
+
+    original_extension = os.path.splitext(
+        original_filename
+    )[1].lower()
+
+    # --------------------------------------------------------
+    # Convert audio to WAV when necessary
+    # --------------------------------------------------------
+
+    converted_audio_path = None
+
+    try:
+
+        if original_extension == ".wav":
+
+            processed_audio_bytes = audio_bytes
+            processed_filename = original_filename
+            processed_content_type = "audio/wav"
+
+        else:
+
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=original_extension or ".audio"
+            ) as input_file:
+
+                input_file.write(audio_bytes)
+                input_audio_path = input_file.name
+
+            converted_audio_path = (
+                input_audio_path + ".wav"
+            )
+
+            try:
+
+                subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-i",
+                        input_audio_path,
+                        "-ar",
+                        "16000",
+                        "-ac",
+                        "1",
+                        converted_audio_path
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+
+            except subprocess.CalledProcessError as e:
+
+                error_message = (
+                    e.stderr.decode(
+                        errors="ignore"
+                    )
+                )
+
+                raise ValueError(
+                    f"Audio conversion failed: "
+                    f"{error_message}"
+                )
+
+            with open(
+                converted_audio_path,
+                "rb"
+            ) as converted_file:
+
+                processed_audio_bytes = (
+                    converted_file.read()
+                )
+
+            processed_filename = (
+                os.path.splitext(
+                    original_filename
+                )[0]
+                + ".wav"
+            )
+
+            processed_content_type = "audio/wav"
+
+    finally:
+
+        if (
+            "input_audio_path" in locals()
+            and os.path.exists(input_audio_path)
+        ):
+            os.remove(input_audio_path)
+
+        if (
+            converted_audio_path is not None
+            and os.path.exists(converted_audio_path)
+        ):
+            os.remove(converted_audio_path)
+
     # --------------------------------------------------------
     # Get previous conversation and distress
     # BEFORE processing current voice message
@@ -47,14 +149,14 @@ async def create_voice_assessment(
     )
 
     # --------------------------------------------------------
-    # Prepare audio
+    # Prepare processed WAV audio
     # --------------------------------------------------------
 
     files = {
         "audio": (
-            audio.filename or "audio.wav",
-            audio_bytes,
-            audio.content_type or "audio/wav"
+            processed_filename,
+            processed_audio_bytes,
+            processed_content_type
         )
     }
 
@@ -70,7 +172,7 @@ async def create_voice_assessment(
     }
 
     # --------------------------------------------------------
-    # Send audio + history + previous distress to AI service
+    # Send WAV audio to AI service
     # --------------------------------------------------------
 
     async with httpx.AsyncClient(
@@ -97,7 +199,7 @@ async def create_voice_assessment(
         .insert({
             "victim_id": victim_id,
             "text_response": ai_result["text"],
-            "voice_reference": audio.filename
+            "voice_reference": original_filename
         })
         .execute()
     )
