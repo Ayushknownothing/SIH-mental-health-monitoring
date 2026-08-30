@@ -1,5 +1,8 @@
 from app.database.supabase_client import supabase
 from app.services.ai_service import analyze_text
+from app.services.history_service import (
+    get_recent_conversation_history
+)
 
 
 def create_assessment(
@@ -7,7 +10,40 @@ def create_assessment(
     text_response: str | None,
     voice_reference: str | None
 ):
-    response = (
+    emotion_result = None
+
+    # --------------------------------------------------------
+    # Get PREVIOUS conversation before saving current message
+    # --------------------------------------------------------
+
+    conversation_history = []
+
+    if text_response:
+
+        conversation_history = (
+            get_recent_conversation_history(
+                victim_id
+            )
+        )
+
+    # --------------------------------------------------------
+    # Analyze current message
+    # --------------------------------------------------------
+
+    ai_result = None
+
+    if text_response:
+
+        ai_result = analyze_text(
+            text_response,
+            conversation_history=conversation_history
+        )
+
+    # --------------------------------------------------------
+    # Create interaction
+    # --------------------------------------------------------
+
+    interaction_response = (
         supabase
         .table("interactions")
         .insert({
@@ -18,12 +54,13 @@ def create_assessment(
         .execute()
     )
 
-    interaction = response.data[0]
+    interaction = interaction_response.data[0]
 
-    emotion_result = None
+    # --------------------------------------------------------
+    # Save emotion result
+    # --------------------------------------------------------
 
-    if text_response:
-        ai_result = analyze_text(text_response)
+    if ai_result:
 
         emotions = ai_result["emotions"]
         explanation = ai_result.get("explanation")

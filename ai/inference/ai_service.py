@@ -9,7 +9,24 @@ from inference.llama_service import generate_explanation
 # TEXT INPUT
 # ============================================================
 
-def process_text(text):
+def process_text(
+    text,
+    conversation_history=None
+):
+    """
+    Process a text message.
+
+    Flow:
+        User message
+            ↓
+        Emotion Model
+            ↓
+        Emotion scores
+            ↓
+        Llama + conversation history
+            ↓
+        Conversational response
+    """
 
     if not isinstance(text, str):
         raise TypeError("text must be a string")
@@ -19,10 +36,17 @@ def process_text(text):
     if not text:
         raise ValueError("text cannot be empty")
 
+    if conversation_history is None:
+        conversation_history = []
+
+    # Text → Emotions
     emotions = analyze_text(text)
 
+    # Current message + emotions + history → Llama
     explanation = generate_explanation(
-        emotions=emotions
+        current_message=text,
+        emotions=emotions,
+        conversation_history=conversation_history
     )
 
     return {
@@ -37,7 +61,28 @@ def process_text(text):
 # SPEECH INPUT
 # ============================================================
 
-def process_audio(audio_path):
+def process_audio(
+    audio_path,
+    conversation_history=None
+):
+    """
+    Process a voice message.
+
+    Flow:
+        Audio
+            ↓
+        Whisper
+            ↓
+        Text
+            ↓
+        Emotion Model
+            ↓
+        Emotion scores
+            ↓
+        Llama + conversation history
+            ↓
+        Conversational response
+    """
 
     audio_path = Path(audio_path)
 
@@ -45,6 +90,9 @@ def process_audio(audio_path):
         raise FileNotFoundError(
             f"Audio file not found: {audio_path}"
         )
+
+    if conversation_history is None:
+        conversation_history = []
 
     # Step 1: Speech → Text
     text = transcribe(audio_path)
@@ -57,8 +105,11 @@ def process_audio(audio_path):
     # Step 2: Text → Emotions
     emotions = analyze_text(text)
 
+    # Step 3: Transcript + emotions + history → Llama
     explanation = generate_explanation(
-        emotions=emotions
+        current_message=text,
+        emotions=emotions,
+        conversation_history=conversation_history
     )
 
     return {
@@ -85,7 +136,6 @@ if __name__ == "__main__":
 
     print(text_result)
 
-
     print("\n" + "=" * 60)
     print("SPEECH TEST")
     print("=" * 60)
@@ -98,4 +148,4 @@ if __name__ == "__main__":
 
     audio_result = process_audio(audio_path)
 
-    print(audio_result) 
+    print(audio_result)

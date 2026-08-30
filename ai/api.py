@@ -1,9 +1,10 @@
 from pathlib import Path
 import shutil
 import tempfile
+from typing import Any
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel, Field
 
 from inference.ai_service import process_text, process_audio
 
@@ -16,6 +17,9 @@ app = FastAPI(
 
 class TextRequest(BaseModel):
     text: str
+    conversation_history: list[dict[str, Any]] = Field(
+        default_factory=list
+    )
 
 
 @app.get("/")
@@ -26,35 +30,82 @@ def root():
     }
 
 
+# ============================================================
+# TEXT ANALYSIS
+# ============================================================
+
 @app.post("/api/analyze/text")
 def analyze_text(request: TextRequest):
 
     try:
-        return process_text(request.text)
+
+        return process_text(
+            request.text,
+            conversation_history=request.conversation_history
+        )
 
     except ValueError as e:
+
         raise HTTPException(
             status_code=400,
             detail=str(e)
         )
 
     except Exception as e:
+
         raise HTTPException(
             status_code=500,
             detail=str(e)
         )
 
 
+# ============================================================
+# SPEECH ANALYSIS
+# ============================================================
+
 @app.post("/api/analyze/speech")
 async def analyze_speech(
-    audio: UploadFile = File(...)
+    audio: UploadFile = File(...),
+    conversation_history: str = Form("[]")
 ):
 
     temp_path = None
 
     try:
 
-        suffix = Path(audio.filename or "").suffix
+        # ----------------------------------------------------
+        # Parse conversation history
+        # ----------------------------------------------------
+
+        import json
+
+        try:
+
+            history = json.loads(
+                conversation_history
+            )
+
+        except json.JSONDecodeError:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid conversation_history JSON"
+            )
+
+        if not isinstance(history, list):
+
+            raise HTTPException(
+                status_code=400,
+                detail="conversation_history must be a list"
+            )
+
+        # ----------------------------------------------------
+        # Save uploaded audio temporarily
+        # ----------------------------------------------------
+
+        suffix = Path(
+            audio.filename or ""
+        ).suffix
 
         with tempfile.NamedTemporaryFile(
             delete=False,
@@ -68,7 +119,14 @@ async def analyze_speech(
 
             temp_path = temp_file.name
 
-        return process_audio(temp_path)
+        # ----------------------------------------------------
+        # Process audio
+        # ----------------------------------------------------
+
+        return process_audio(
+            temp_path,
+            conversation_history=history
+        )
 
     except ValueError as e:
 
@@ -76,6 +134,10 @@ async def analyze_speech(
             status_code=400,
             detail=str(e)
         )
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
 
@@ -87,6 +149,7 @@ async def analyze_speech(
     finally:
 
         if temp_path:
+
             Path(temp_path).unlink(
                 missing_ok=True
             )

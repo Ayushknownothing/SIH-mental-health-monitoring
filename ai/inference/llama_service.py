@@ -1,4 +1,5 @@
 import os
+
 import requests
 
 
@@ -14,61 +15,198 @@ LLAMA_MODEL = os.getenv(
 
 
 SYSTEM_PROMPT = """
-You are the conversational and explanation layer of a mental health
+You are the conversational support layer of a mental health
 monitoring system.
 
-Your job is to explain AI-generated emotion and distress results in
-simple, supportive, non-diagnostic language.
+Your job is to respond naturally and supportively to the user's
+latest message.
 
-Rules:
+The emotion scores are AI-generated signals. They are not medical
+facts and must not be treated as a diagnosis.
+
+STRICT RULES:
+
+- Always prioritize the user's latest message.
+- Acknowledge important new information introduced in the latest
+  message.
+- Use previous conversation only as supporting context.
 - Do not diagnose any mental health condition.
-- Do not claim certainty about a person's mental health.
+- Do not claim certainty about the user's mental state.
+- Do not invent facts, people, places, events, causes, or situations.
+- Only refer to circumstances explicitly stated by the user or
+  clearly present in the conversation.
+- Never assume where an event happened.
+- Never assume who caused something.
+- Never assume the user is at home, at work, at school, etc.
+- Never invent threats, abuse, trauma, relationships, or other
+  circumstances that the user did not mention.
 - Do not calculate or invent distress scores.
-- Do not change the risk level provided by the prediction model.
+- Do not change or reinterpret risk levels supplied by prediction
+  models.
 - Do not replace the ML prediction models.
-- Treat emotion and distress scores as model outputs, not medical facts.
-- Be supportive and empathetic.
+- Do not mention internal model names, Llama, Ollama, or system
+  implementation details.
+- Do not repeat the entire conversation.
+- Do not ignore important information from the latest message.
+- If the latest message introduces a new concern, respond to that
+  concern directly.
+- If information is missing, ask the user instead of guessing.
+- Be empathetic but concise.
+- Ask a relevant follow-up question when appropriate.
 - Encourage appropriate human support when relevant.
-- Keep responses concise and understandable.
 """
 
 
 def generate_explanation(
+    current_message: str,
     emotions: dict,
     distress_score: float | None = None,
-    risk_level: str | None = None
+    risk_level: str | None = None,
+    conversation_history: list[dict] | None = None
 ):
+    """
+    Generate a supportive conversational response.
+
+    Inputs:
+        current_message:
+            The user's latest message.
+
+        emotions:
+            Current emotion model results.
+
+        conversation_history:
+            Previous user conversation messages.
+
+        distress_score:
+            Optional score from the prediction model.
+
+        risk_level:
+            Optional risk level from the prediction model.
+    """
+
+    if conversation_history is None:
+        conversation_history = []
+
+    current_message = current_message.strip()
+
+    if not current_message:
+        raise ValueError(
+            "current_message cannot be empty"
+        )
+
+    # --------------------------------------------------------
+    # Format emotion results
+    # --------------------------------------------------------
 
     emotion_text = ", ".join(
         f"{emotion}={score:.2f}"
         for emotion, score in emotions.items()
     )
 
-    prompt = f"""
-Explain the following AI-generated assessment results
-in a supportive, non-diagnostic way.
+    # --------------------------------------------------------
+    # Build prompt
+    # --------------------------------------------------------
 
-Emotion results:
+    prompt = """
+We are having an ongoing conversation with a user.
+
+Previous conversation context:
+"""
+
+    if conversation_history:
+
+        for message in conversation_history:
+
+            role = message.get(
+                "role",
+                "user"
+            )
+
+            content = message.get(
+                "content",
+                ""
+            ).strip()
+
+            if not content:
+                continue
+
+            prompt += (
+                f"{role.capitalize()}: "
+                f"{content}\n"
+            )
+
+    else:
+
+        prompt += (
+            "No previous conversation context "
+            "is available.\n"
+        )
+
+    # --------------------------------------------------------
+    # Current message
+    # --------------------------------------------------------
+
+    prompt += f"""
+
+LATEST USER MESSAGE:
+{current_message}
+
+The latest user message is the PRIMARY message.
+Respond directly to it.
+
+Current emotion model results:
 {emotion_text}
 """
 
+    # --------------------------------------------------------
+    # Optional prediction information
+    # --------------------------------------------------------
+
     if distress_score is not None:
+
         prompt += f"""
 Distress score generated by the prediction model:
 {distress_score}
 """
 
     if risk_level is not None:
+
         prompt += f"""
 Risk level generated by the prediction model:
 {risk_level}
 """
 
+    # --------------------------------------------------------
+    # Response instructions
+    # --------------------------------------------------------
+
     prompt += """
-Do not diagnose the person.
-Do not change or reinterpret the provided numerical prediction.
-Explain what the results may indicate in simple language.
+Now generate the conversational response.
+
+Before responding, check:
+
+1. Am I responding primarily to the LATEST USER MESSAGE?
+2. Did I acknowledge important new information from the
+   latest message?
+3. Am I using previous conversation only as context?
+4. Did I invent any fact that the user did not provide?
+5. Did I assume a location, person, cause, relationship,
+   or event that was not stated?
+6. Did I diagnose the user?
+7. Did I invent or modify a distress score or risk level?
+8. Did I unnecessarily repeat the previous conversation?
+
+If information is missing, ask the user instead of guessing.
+
+Keep the response supportive, natural, concise, and
+appropriate for a mental health support conversation.
+
+Return only the conversational response.
 """
+
+    # --------------------------------------------------------
+    # Call Ollama
+    # --------------------------------------------------------
 
     response = requests.post(
         f"{LLAMA_BASE_URL}/api/generate",

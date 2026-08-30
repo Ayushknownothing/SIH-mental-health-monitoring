@@ -1,9 +1,13 @@
+import json
 import os
 
 import httpx
 from fastapi import UploadFile
 
 from app.database.supabase_client import supabase
+from app.services.history_service import (
+    get_recent_conversation_history
+)
 
 
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL")
@@ -13,13 +17,31 @@ async def create_voice_assessment(
     victim_id: str,
     audio: UploadFile
 ):
+    # --------------------------------------------------------
     # Read uploaded audio
+    # --------------------------------------------------------
+
     audio_bytes = await audio.read()
 
     if not audio_bytes:
-        raise ValueError("Audio file cannot be empty")
+        raise ValueError(
+            "Audio file cannot be empty"
+        )
 
-    # Send audio to AI voice endpoint
+    # --------------------------------------------------------
+    # Get PREVIOUS conversation before current voice message
+    # --------------------------------------------------------
+
+    conversation_history = (
+        get_recent_conversation_history(
+            victim_id
+        )
+    )
+
+    # --------------------------------------------------------
+    # Prepare audio
+    # --------------------------------------------------------
+
     files = {
         "audio": (
             audio.filename or "audio.wav",
@@ -28,17 +50,34 @@ async def create_voice_assessment(
         )
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    data = {
+        "conversation_history": json.dumps(
+            conversation_history
+        )
+    }
+
+    # --------------------------------------------------------
+    # Send audio + conversation history to AI service
+    # --------------------------------------------------------
+
+    async with httpx.AsyncClient(
+        timeout=120.0
+    ) as client:
+
         response = await client.post(
             f"{AI_SERVICE_URL}/api/analyze/speech",
-            files=files
+            files=files,
+            data=data
         )
 
     response.raise_for_status()
 
     ai_result = response.json()
 
+    # --------------------------------------------------------
     # Create interaction
+    # --------------------------------------------------------
+
     interaction_response = (
         supabase
         .table("interactions")
@@ -52,11 +91,17 @@ async def create_voice_assessment(
 
     interaction = interaction_response.data[0]
 
-    # Get emotion results and Llama explanation
+    # --------------------------------------------------------
+    # Get emotion results and explanation
+    # --------------------------------------------------------
+
     emotions = ai_result["emotions"]
     explanation = ai_result.get("explanation")
 
+    # --------------------------------------------------------
     # Save emotion result
+    # --------------------------------------------------------
+
     emotion_response = (
         supabase
         .table("emotion_results")
@@ -81,8 +126,10 @@ async def create_voice_assessment(
 
     emotion_result = emotion_response.data[0]
 
-    # Add Llama explanation to API response
-    # without storing it in Supabase
+    # --------------------------------------------------------
+    # Add explanation to API response
+    # --------------------------------------------------------
+
     if emotion_result:
         emotion_result["explanation"] = explanation
 
