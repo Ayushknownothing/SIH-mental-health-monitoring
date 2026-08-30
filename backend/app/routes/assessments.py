@@ -5,6 +5,7 @@ from app.services.assessment_service import (
     create_assessment as create_assessment_service
 )
 
+
 router = APIRouter(
     prefix="/api/assessments",
     tags=["Assessments"]
@@ -15,7 +16,8 @@ router = APIRouter(
 def create_assessment(assessment: AssessmentCreate):
 
     try:
-        interaction_data = create_assessment_service(
+
+        result = create_assessment_service(
             assessment.victim_id,
             assessment.text_response,
             assessment.voice_reference
@@ -23,11 +25,13 @@ def create_assessment(assessment: AssessmentCreate):
 
         return {
             "message": "Assessment created successfully",
-            "interaction": interaction_data["interaction"],
-            "emotion_result": interaction_data["emotion_result"]
+            "interaction": result["interaction"],
+            "emotion_result": result["emotion_result"],
+            "prediction": result["prediction"]
         }
 
     except Exception as e:
+
         raise HTTPException(
             status_code=500,
             detail=str(e)

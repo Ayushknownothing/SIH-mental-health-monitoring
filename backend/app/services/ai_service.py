@@ -11,13 +11,15 @@ AI_SERVICE_URL = os.getenv("AI_SERVICE_URL")
 
 def analyze_text(
     text: str,
-    conversation_history: list | None = None
+    conversation_history: list | None = None,
+    previous_distress: float | None = None
 ):
     response = httpx.post(
         f"{AI_SERVICE_URL}/api/analyze/text",
         json={
             "text": text,
-            "conversation_history": conversation_history or []
+            "conversation_history": conversation_history or [],
+            "previous_distress": previous_distress
         },
         timeout=120.0
     )

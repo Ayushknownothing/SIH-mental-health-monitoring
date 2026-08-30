@@ -1,7 +1,8 @@
 from app.database.supabase_client import supabase
 from app.services.ai_service import analyze_text
 from app.services.history_service import (
-    get_recent_conversation_history
+    get_recent_conversation_history,
+    get_previous_distress
 )
 
 
@@ -11,17 +12,26 @@ def create_assessment(
     voice_reference: str | None
 ):
     emotion_result = None
+    prediction_result = None
 
     # --------------------------------------------------------
-    # Get PREVIOUS conversation before saving current message
+    # Get previous conversation and distress before
+    # processing the current message
     # --------------------------------------------------------
 
     conversation_history = []
+    previous_distress = None
 
     if text_response:
 
         conversation_history = (
             get_recent_conversation_history(
+                victim_id
+            )
+        )
+
+        previous_distress = (
+            get_previous_distress(
                 victim_id
             )
         )
@@ -36,7 +46,8 @@ def create_assessment(
 
         ai_result = analyze_text(
             text_response,
-            conversation_history=conversation_history
+            conversation_history=conversation_history,
+            previous_distress=previous_distress
         )
 
     # --------------------------------------------------------
@@ -92,7 +103,38 @@ def create_assessment(
         if emotion_result:
             emotion_result["explanation"] = explanation
 
+    # --------------------------------------------------------
+    # Save Model 3 distress prediction
+    # --------------------------------------------------------
+
+    if ai_result and ai_result.get("distress"):
+
+        distress = ai_result["distress"]
+
+        prediction_response = (
+            supabase
+            .table("predictions")
+            .insert({
+                "interaction_id": interaction["interaction_id"],
+                "distress_score": distress["distress_score"],
+                "risk_level": distress["risk_level"],
+                "confidence": None,
+                "trend_direction": distress["trend_direction"],
+                "previous_score": distress["previous_score"],
+                "score_change": distress["score_change"],
+                "model_version": "calibrated_ridge"
+            })
+            .execute()
+        )
+
+        prediction_result = prediction_response.data[0]
+
+    # --------------------------------------------------------
+    # Return complete assessment
+    # --------------------------------------------------------
+
     return {
         "interaction": interaction,
-        "emotion_result": emotion_result
+        "emotion_result": emotion_result,
+        "prediction": prediction_result
     }
