@@ -1,4 +1,5 @@
 from app.database.supabase_client import supabase
+from app.services.ai_service import analyze_text
 
 
 def create_assessment(
@@ -17,4 +18,40 @@ def create_assessment(
         .execute()
     )
 
-    return response.data[0]
+    interaction = response.data[0]
+
+    emotion_result = None
+
+    if text_response:
+        ai_result = analyze_text(text_response)
+
+        emotions = ai_result["emotions"]
+
+        emotion_response = (
+            supabase
+            .table("emotion_results")
+            .insert({
+                "interaction_id": interaction["interaction_id"],
+                "input_type": "text",
+                "text": text_response,
+                "anger": emotions["anger"],
+                "contempt": emotions["contempt"],
+                "disgust": emotions["disgust"],
+                "fear": emotions["fear"],
+                "frustration": emotions["frustration"],
+                "gratitude": emotions["gratitude"],
+                "joy": emotions["joy"],
+                "love": emotions["love"],
+                "neutral": emotions["neutral"],
+                "sadness": emotions["sadness"],
+                "surprise": emotions["surprise"]
+            })
+            .execute()
+        )
+
+        emotion_result = emotion_response.data[0]
+
+    return {
+        "interaction": interaction,
+        "emotion_result": emotion_result
+    }

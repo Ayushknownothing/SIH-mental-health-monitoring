@@ -23,7 +23,8 @@ def create_assessment(assessment: AssessmentCreate):
 
         return {
             "message": "Assessment created successfully",
-            "interaction": interaction_data
+            "interaction": interaction_data["interaction"],
+            "emotion_result": interaction_data["emotion_result"]
         }
 
     except Exception as e:
