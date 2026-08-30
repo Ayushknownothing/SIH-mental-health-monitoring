@@ -17,9 +17,12 @@ app = FastAPI(
 
 class TextRequest(BaseModel):
     text: str
+
     conversation_history: list[dict[str, Any]] = Field(
         default_factory=list
     )
+
+    previous_distress: float | None = None
 
 
 @app.get("/")
@@ -38,21 +41,19 @@ def root():
 def analyze_text(request: TextRequest):
 
     try:
-
         return process_text(
             request.text,
-            conversation_history=request.conversation_history
+            conversation_history=request.conversation_history,
+            previous_distress=request.previous_distress
         )
 
     except ValueError as e:
-
         raise HTTPException(
             status_code=400,
             detail=str(e)
         )
 
     except Exception as e:
-
         raise HTTPException(
             status_code=500,
             detail=str(e)
@@ -66,7 +67,8 @@ def analyze_text(request: TextRequest):
 @app.post("/api/analyze/speech")
 async def analyze_speech(
     audio: UploadFile = File(...),
-    conversation_history: str = Form("[]")
+    conversation_history: str = Form("[]"),
+    previous_distress: float | None = Form(None)
 ):
 
     temp_path = None
@@ -80,20 +82,17 @@ async def analyze_speech(
         import json
 
         try:
-
             history = json.loads(
                 conversation_history
             )
 
         except json.JSONDecodeError:
-
             raise HTTPException(
                 status_code=400,
                 detail="Invalid conversation_history JSON"
             )
 
         if not isinstance(history, list):
-
             raise HTTPException(
                 status_code=400,
                 detail="conversation_history must be a list"
@@ -125,7 +124,8 @@ async def analyze_speech(
 
         return process_audio(
             temp_path,
-            conversation_history=history
+            conversation_history=history,
+            previous_distress=previous_distress
         )
 
     except ValueError as e:
