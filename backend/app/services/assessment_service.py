@@ -26,6 +26,7 @@ def create_assessment(
         ai_result = analyze_text(text_response)
 
         emotions = ai_result["emotions"]
+        explanation = ai_result.get("explanation")
 
         emotion_response = (
             supabase
@@ -50,6 +51,9 @@ def create_assessment(
         )
 
         emotion_result = emotion_response.data[0]
+
+        if emotion_result:
+            emotion_result["explanation"] = explanation
 
     return {
         "interaction": interaction,

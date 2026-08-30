@@ -1,5 +1,4 @@
 import os
-import tempfile
 
 import httpx
 from fastapi import UploadFile
@@ -53,7 +52,9 @@ async def create_voice_assessment(
 
     interaction = interaction_response.data[0]
 
+    # Get emotion results and Llama explanation
     emotions = ai_result["emotions"]
+    explanation = ai_result.get("explanation")
 
     # Save emotion result
     emotion_response = (
@@ -78,7 +79,14 @@ async def create_voice_assessment(
         .execute()
     )
 
+    emotion_result = emotion_response.data[0]
+
+    # Add Llama explanation to API response
+    # without storing it in Supabase
+    if emotion_result:
+        emotion_result["explanation"] = explanation
+
     return {
         "interaction": interaction,
-        "emotion_result": emotion_response.data[0]
+        "emotion_result": emotion_result
     }

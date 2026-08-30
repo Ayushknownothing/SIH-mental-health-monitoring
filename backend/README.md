@@ -1,0 +1,876 @@
+SIH Mental Health Monitoring — Backend
+
+1. Overview
+
+This directory contains the FastAPI backend for the AI-based Dynamic Mental Health Monitoring System.
+
+The backend is responsible for:
+
+Managing victims
+
+Creating text assessments
+
+Creating voice assessments
+
+Communicating with the AI service
+
+Storing interaction and emotion results in Supabase
+
+Providing APIs for emotion results and distress predictions
+
+Providing victim history for dynamic monitoring
+
+Returning AI-generated explanations from the local Llama/Ollama layer
+
+The backend connects the frontend, AI services/models, and Supabase database.
+
+2. Current Architecture
+
+Text Assessment
+
+Frontend / Client
+       |
+       | POST /api/assessments/
+       v
+FastAPI Backend :8000
+       |
+       v
+AI Service :8001
+       |
+       v
+Emotion Model 1
+       |
+       +----------------------+
+       |                      |
+       v                      v
+Emotion Scores          Ollama :11434
+                              |
+                              v
+                       Llama 3.2:3b
+                              |
+                              v
+                         Explanation
+       |                      |
+       +----------+-----------+
+                  |
+                  v
+          Backend Response
+             /          \
+            v            v
+       Supabase       Frontend
+
+Voice Assessment
+
+Frontend / Client
+       |
+       | POST /api/assessments/voice
+       v
+FastAPI Backend :8000
+       |
+       v
+AI Service :8001
+       |
+       v
+Whisper
+       |
+       v
+Transcribed Text
+       |
+       v
+Emotion Model 1
+       |
+       +----------------------+
+       |                      |
+       v                      v
+Emotion Scores          Ollama :11434
+                              |
+                              v
+                       Llama 3.2:3b
+                              |
+                              v
+                         Explanation
+       |                      |
+       +----------+-----------+
+                  |
+                  v
+          Backend Response
+             /          \
+            v            v
+       Supabase       Frontend
+
+Component Responsibilities
+
+FastAPI Backend
+    |
+    +-- API handling
+    +-- Victim management
+    +-- Assessment management
+    +-- Supabase database operations
+    +-- Communication with AI service
+    |
+    v
+AI Service
+    |
+    +-- Whisper speech-to-text
+    +-- Emotion Model 1
+    +-- Llama explanation layer
+
+3. Technology Stack
+
+Python
+
+FastAPI
+
+Uvicorn
+
+Pydantic
+
+Supabase
+
+PostgreSQL through Supabase
+
+HTTPX
+
+python-multipart for voice uploads
+
+Whisper for speech-to-text
+
+Hugging Face Transformers for Emotion Model 1
+
+Ollama for local Llama inference
+
+Llama 3.2:3b
+
+Separate AI service on port 8001
+
+4. Project Structure
+
+SIH-mental-health-monitoring/
+|
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   │
+│   │   ├── database/
+│   │   │   ├── supabase_client.py
+│   │   │   └── __init__.py
+│   │   │
+│   │   ├── models/
+│   │   │   ├── schemas.py
+│   │   │   └── __init__.py
+│   │   │
+│   │   ├── routes/
+│   │   │   ├── victims.py
+│   │   │   ├── assessments.py
+│   │   │   ├── voice_assessments.py
+│   │   │   ├── emotion_results.py
+│   │   │   ├── predictions.py
+│   │   │   └── __init__.py
+│   │   │
+│   │   └── services/
+│   │       ├── victim_service.py
+│   │       ├── assessment_service.py
+│   │       ├── voice_assessment_service.py
+│   │       ├── emotion_service.py
+│   │       ├── history_service.py
+│   │       ├── prediction_service.py
+│   │       ├── ai_service.py
+│   │       └── __init__.py
+│   │
+│   ├── requirements.txt
+│   ├── .env
+│   ├── .gitignore
+│   └── README.md
+│
+├── ai/
+│   ├── inference/
+│   │   ├── ai_service.py
+│   │   ├── emotion_model.py
+│   │   ├── llama_service.py
+│   │   └── transcription.py
+│   │
+│   ├── models/
+│   │   ├── stress_model.py
+│   │   └── __init__.py
+│   │
+│   ├── preprocessing/
+│   │   └── audio_preprocessor.py
+│   │
+│   ├── api.py
+│   ├── test_api.py
+│   ├── requirements.txt
+│   ├── README.md
+│   └── venv/
+│
+└── ...
+
+venv/, __pycache__/, and .pyc files are generated/local files and should not be committed.
+
+5. Environment Configuration
+
+The backend uses:
+
+backend/.env
+
+Expected variables:
+
+SUPABASE_URL=<your-supabase-url>
+SUPABASE_KEY=<your-supabase-key>
+
+AI_SERVICE_URL=http://127.0.0.1:8001
+
+The AI service uses:
+
+LLAMA_BASE_URL=http://127.0.0.1:11434
+LLAMA_MODEL=llama3.2:3b
+
+Important
+
+Never commit .env files or secret keys to GitHub.
+
+Each developer should create their own local environment configuration.
+
+6. Python Environment Setup
+
+Backend
+
+From the repository root:
+
+cd backend
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+If the virtual environment does not exist:
+
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+AI Service
+
+cd ai
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+The AI service environment contains the required packages for Transformers, PyTorch, Whisper, FastAPI, and related inference dependencies.
+
+7. Running the System Locally
+
+The local system uses three services/components:
+
+AI Service
+
+Backend
+
+Ollama
+
+Terminal 1 — AI Service
+
+cd ai
+.\venv\Scripts\Activate.ps1
+python -m uvicorn api:app --reload --port 8001
+
+AI service:
+
+http://127.0.0.1:8001
+
+Terminal 2 — Backend
+
+cd backend
+.\venv\Scripts\Activate.ps1
+python -m uvicorn app.main:app --reload --port 8000
+
+Backend:
+
+http://127.0.0.1:8000
+
+Ollama
+
+Ollama runs locally as a separate background service:
+
+http://127.0.0.1:11434
+
+Current model:
+
+llama3.2:3b
+
+Check installed models:
+
+ollama list
+
+Check Ollama API:
+
+Invoke-RestMethod http://127.0.0.1:11434/api/tags
+
+Ollama is a separate local service. It is not started by FastAPI.
+
+Local Service Layout
+
+Terminal 1
+    AI Service :8001
+
+Terminal 2
+    Backend :8000
+
+Ollama
+    Local background service :11434
+
+8. Backend API
+
+Root
+
+GET /
+
+Health
+
+GET /health
+
+Victims
+
+POST /api/victims/
+GET /api/victims/{victim_id}/history
+
+Text Assessment
+
+POST /api/assessments/
+
+Example request:
+
+{
+  "victim_id": "<victim-id>",
+  "text_response": "I feel very scared and stressed",
+  "voice_reference": null
+}
+
+The backend sends the text to the AI service, receives emotion results and the Llama explanation, stores the interaction/emotion result in Supabase, and returns the result to the client.
+
+Voice Assessment
+
+POST /api/assessments/voice
+
+Multipart form:
+
+victim_id = <victim-id>
+audio = <audio-file>
+
+The backend sends the uploaded audio to the AI service.
+
+Emotion Results
+
+POST /api/emotion-results/
+
+Predictions
+
+POST /api/predictions/
+
+The prediction endpoint/schema is prepared for Model 2 distress prediction.
+
+9. AI Service
+
+The AI service is a separate FastAPI application.
+
+Location:
+
+ai/
+
+Main API:
+
+ai/api.py
+
+Endpoints:
+
+POST /api/analyze/text
+POST /api/analyze/speech
+
+Text
+
+Text
+  ↓
+Emotion Model 1
+  ↓
+Emotion scores
+  ↓
+Llama 3.2:3b through Ollama
+  ↓
+Supportive explanation
+  ↓
+AI service response
+
+Speech
+
+Audio
+  ↓
+Whisper
+  ↓
+Transcribed text
+  ↓
+Emotion Model 1
+  ↓
+Emotion scores
+  ↓
+Llama 3.2:3b through Ollama
+  ↓
+Supportive explanation
+  ↓
+AI service response
+
+10. Emotion Model 1
+
+Emotion Model 1 is currently integrated and tested.
+
+It produces:
+
+anger
+contempt
+disgust
+fear
+frustration
+gratitude
+joy
+love
+neutral
+sadness
+surprise
+
+Example:
+
+Input:
+I feel very scared and stressed
+
+Possible result:
+fear ≈ 0.996
+sadness ≈ 0.056
+frustration ≈ 0.049
+
+The actual values depend on the model input.
+
+The backend stores these values in the emotion_results table.
+
+Status
+
+IMPLEMENTED AND TESTED
+
+Both text and voice emotion flows have been tested successfully.
+
+11. Whisper Speech-to-Text
+
+Voice processing uses OpenAI Whisper.
+
+Location in the AI service:
+
+ai/inference/transcription.py
+
+Pipeline:
+
+Audio file
+   ↓
+Whisper
+   ↓
+Text transcription
+
+The transcribed text is then passed to Emotion Model 1.
+
+Whisper currently runs on CPU in the local setup.
+
+On Windows, the required audio/Whisper environment may require FFmpeg to be available.
+
+12. Llama / Ollama Integration
+
+Llama is currently implemented as the conversational/explanation layer.
+
+Ollama:
+
+http://127.0.0.1:11434
+
+Model:
+
+llama3.2:3b
+
+AI service implementation:
+
+ai/inference/llama_service.py
+
+Role of Llama
+
+Llama is responsible for:
+
+Explaining emotion results
+
+Producing simple human-readable responses
+
+Providing supportive language
+
+Keeping explanations non-diagnostic
+
+Explaining supplied model outputs without replacing the ML models
+
+Llama must not
+
+Diagnose a mental health condition
+
+Invent distress scores
+
+Calculate the core distress prediction
+
+Change a risk level generated by Model 2
+
+Replace the ML prediction models
+
+The numerical prediction should come from the defined ML pipeline.
+
+Current Flow
+
+Emotion Model 1
+      |
+      v
+Emotion scores
+      |
+      v
+Llama
+      |
+      v
+Explanation
+      |
+      v
+Backend
+      |
+      v
+Frontend / API client
+
+The current implementation returns the explanation in the API response.
+
+The explanation is currently not stored as a separate database column.
+
+Status
+
+IMPLEMENTED AND TESTED
+
+Llama explanations have been successfully returned for both text and voice assessments.
+
+13. Text Assessment End-to-End Flow
+
+User enters text
+       |
+       v
+POST /api/assessments/
+       |
+       v
+Backend :8000
+       |
+       v
+AI Service :8001
+       |
+       v
+Emotion Model 1
+       |
+       +------------------+
+       |                  |
+       v                  v
+Emotion scores         Llama
+                          |
+                          v
+                     Explanation
+       |                  |
+       +--------+---------+
+                |
+                v
+          Backend :8000
+           /             \
+          v               v
+     Supabase          Frontend
+
+14. Voice Assessment End-to-End Flow
+
+User uploads audio
+       |
+       v
+POST /api/assessments/voice
+       |
+       v
+Backend :8000
+       |
+       v
+AI Service :8001
+       |
+       v
+Whisper
+       |
+       v
+Transcribed text
+       |
+       v
+Emotion Model 1
+       |
+       +------------------+
+       |                  |
+       v                  v
+Emotion scores         Llama
+                          |
+                          v
+                     Explanation
+       |                  |
+       +--------+---------+
+                |
+                v
+          Backend :8000
+           /             \
+          v               v
+     Supabase          Frontend
+
+15. Supabase
+
+The backend uses Supabase for persistent storage.
+
+Client:
+
+backend/app/database/supabase_client.py
+
+The backend currently stores information including:
+
+victims
+interactions
+emotion_results
+predictions
+
+For an assessment, the general relationship is:
+
+Victim
+  |
+  v
+Interaction
+  |
+  v
+Emotion Result
+  |
+  v
+Future Prediction
+
+The database schema is maintained separately from this README.
+
+16. Text Assessment Service
+
+The text assessment service:
+
+backend/app/services/assessment_service.py
+
+Current behavior:
+
+Creates an interaction in Supabase.
+
+Sends the text to the backend AI service.
+
+Receives emotion scores.
+
+Receives the Llama explanation.
+
+Stores the emotion scores in emotion_results.
+
+Adds the explanation to the returned API object.
+
+Returns the interaction and emotion result.
+
+The explanation is returned to the client but is not currently stored as a separate Supabase field.
+
+17. Voice Assessment Service
+
+The voice assessment service:
+
+backend/app/services/voice_assessment_service.py
+
+Current behavior:
+
+Reads the uploaded audio.
+
+Sends the audio to /api/analyze/speech on the AI service.
+
+Receives transcription, emotion scores, and explanation.
+
+Creates an interaction in Supabase.
+
+Stores the emotion result.
+
+Adds the Llama explanation to the returned API object.
+
+Returns the interaction and emotion result.
+
+The uploaded filename is stored as voice_reference.
+
+The audio is processed through the AI service rather than being permanently stored by this service.
+
+18. Prediction Model 2
+
+Model 2 is intended to provide the distress prediction layer.
+
+Current intended architecture:
+
+Emotion Model 1
+      +
+Historical assessment data
+      +
+Other defined features
+      |
+      v
+Model 2
+      |
+      v
+Distress Score
+      |
+      v
+Risk Level
+      |
+      v
+Prediction Storage
+
+Expected prediction fields include:
+
+interaction_id
+distress_score
+risk_level
+confidence
+trend_direction
+previous_score
+score_change
+model_version
+
+Risk levels:
+
+LOW
+MODERATE
+HIGH
+CRITICAL
+
+Trend directions:
+
+INCREASING
+DECREASING
+STABLE
+NO_PREVIOUS_DATA
+
+Current Status
+
+MODEL 2: PENDING
+
+The prediction API/schema structure is prepared for the Model 2 integration.
+
+Llama should explain Model 2 outputs after they are generated; it should not generate the numerical prediction itself.
+
+19. Current Testing
+
+Direct AI Text Test
+
+Example:
+
+python -c "from inference.ai_service import process_text; print(process_text('I feel very scared and stressed'))"
+
+This successfully produced:
+
+Emotion scores
+
+Llama explanation
+
+AI Speech Test
+
+Example:
+
+python -c "import requests; f=r'D:\Downloads\test_sample4.wav'; r=requests.post('http://127.0.0.1:8001/api/analyze/speech', files={'audio': ('test_sample4.wav', open(f,'rb'), 'audio/wav')}); print('Status:', r.status_code); print(r.json())"
+
+This successfully produced:
+
+Whisper transcription
+
+Emotion scores
+
+Llama explanation
+
+Backend Text Assessment Test
+
+The backend successfully returned:
+
+Assessment created successfully
+
+with:
+
+interaction
+emotion_result
+explanation
+
+Backend Voice Assessment Test
+
+The backend successfully returned:
+
+Voice assessment created successfully
+
+with:
+
+interaction
+emotion_result
+explanation
+
+Current Local Integration Status
+
+Text → AI → Emotion → Llama → Backend → Supabase    ✅
+Voice → Whisper → Emotion → Llama → Backend → Supabase  ✅
+
+20. Local Ports
+
+Backend:
+127.0.0.1:8000
+
+AI Service:
+127.0.0.1:8001
+
+Ollama:
+127.0.0.1:11434
+
+The three components are separate.
+
+Terminal 1
+    AI Service :8001
+
+Terminal 2
+    Backend :8000
+
+Ollama
+    Local background service :11434
+
+21. API Documentation
+
+When the backend is running:
+
+http://127.0.0.1:8000/docs
+
+When the AI service is running:
+
+http://127.0.0.1:8001/docs
+
+These Swagger/OpenAPI pages can be used to test the APIs manually.
+
+22. Important Git Rules
+
+Do not commit:
+
+backend/.env
+ai/.env
+backend/venv/
+ai/venv/
+__pycache__/
+*.pyc
+
+The Llama model itself is managed by Ollama and is not stored in Git.
+
+Before committing:
+
+git status
+git diff
+
+Then stage only the intended files:
+
+git add <files>
+
+Commit:
+
+git commit -m "describe the change"
+
+Push only when ready:
+
+git push origin main

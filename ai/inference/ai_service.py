@@ -2,6 +2,7 @@ from pathlib import Path
 
 from inference.emotion_model import analyze_text
 from inference.transcription import transcribe
+from inference.llama_service import generate_explanation
 
 
 # ============================================================
@@ -20,10 +21,15 @@ def process_text(text):
 
     emotions = analyze_text(text)
 
+    explanation = generate_explanation(
+        emotions=emotions
+    )
+
     return {
         "input_type": "text",
         "text": text,
-        "emotions": emotions
+        "emotions": emotions,
+        "explanation": explanation
     }
 
 
@@ -51,10 +57,15 @@ def process_audio(audio_path):
     # Step 2: Text → Emotions
     emotions = analyze_text(text)
 
+    explanation = generate_explanation(
+        emotions=emotions
+    )
+
     return {
         "input_type": "speech",
         "text": text,
-        "emotions": emotions
+        "emotions": emotions,
+        "explanation": explanation
     }
 
 

@@ -2,7 +2,7 @@ import requests
 from pathlib import Path
 
 
-AI_URL = "http://127.0.0.1:8000"
+AI_URL = "http://127.0.0.1:8001"
 
 
 def test_text():
@@ -26,11 +26,7 @@ def test_text():
 
 def test_speech():
 
-    audio_path = (
-        Path(__file__).resolve().parent
-        / "data"
-        / "test_sample.wav"
-    )
+    audio_path = Path(r"D:\Downloads\test_sample4.wav")
 
     with open(audio_path, "rb") as audio_file:
 
