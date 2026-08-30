@@ -6,7 +6,8 @@ from fastapi import UploadFile
 
 from app.database.supabase_client import supabase
 from app.services.history_service import (
-    get_recent_conversation_history
+    get_recent_conversation_history,
+    get_previous_distress
 )
 
 
@@ -29,11 +30,18 @@ async def create_voice_assessment(
         )
 
     # --------------------------------------------------------
-    # Get PREVIOUS conversation before current voice message
+    # Get previous conversation and distress
+    # BEFORE processing current voice message
     # --------------------------------------------------------
 
     conversation_history = (
         get_recent_conversation_history(
+            victim_id
+        )
+    )
+
+    previous_distress = (
+        get_previous_distress(
             victim_id
         )
     )
@@ -53,11 +61,16 @@ async def create_voice_assessment(
     data = {
         "conversation_history": json.dumps(
             conversation_history
+        ),
+        "previous_distress": (
+            str(previous_distress)
+            if previous_distress is not None
+            else ""
         )
     }
 
     # --------------------------------------------------------
-    # Send audio + conversation history to AI service
+    # Send audio + history + previous distress to AI service
     # --------------------------------------------------------
 
     async with httpx.AsyncClient(
@@ -92,10 +105,11 @@ async def create_voice_assessment(
     interaction = interaction_response.data[0]
 
     # --------------------------------------------------------
-    # Get emotion results and explanation
+    # Get emotion, distress and explanation results
     # --------------------------------------------------------
 
     emotions = ai_result["emotions"]
+    distress = ai_result.get("distress")
     explanation = ai_result.get("explanation")
 
     # --------------------------------------------------------
@@ -126,14 +140,43 @@ async def create_voice_assessment(
 
     emotion_result = emotion_response.data[0]
 
-    # --------------------------------------------------------
-    # Add explanation to API response
-    # --------------------------------------------------------
-
     if emotion_result:
         emotion_result["explanation"] = explanation
 
+    # --------------------------------------------------------
+    # Save distress prediction
+    # --------------------------------------------------------
+
+    prediction_result = None
+
+    if distress:
+
+        prediction_response = (
+            supabase
+            .table("predictions")
+            .insert({
+                "interaction_id": interaction["interaction_id"],
+                "distress_score": distress["distress_score"],
+                "risk_level": distress["risk_level"],
+                "confidence": distress.get("confidence"),
+                "trend_direction": distress["trend_direction"],
+                "previous_score": distress["previous_score"],
+                "score_change": distress["score_change"],
+                "model_version": distress.get(
+                    "model_version"
+                )
+            })
+            .execute()
+        )
+
+        prediction_result = prediction_response.data[0]
+
+    # --------------------------------------------------------
+    # Return complete voice assessment
+    # --------------------------------------------------------
+
     return {
         "interaction": interaction,
-        "emotion_result": emotion_result
+        "emotion_result": emotion_result,
+        "prediction": prediction_result
     }

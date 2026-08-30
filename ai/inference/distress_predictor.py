@@ -213,5 +213,7 @@ def predict_distress(
         "score_change": round(
             score_change,
             2
-        )
+        ),
+
+        "model_version": "calibrated_ridge"
     }
